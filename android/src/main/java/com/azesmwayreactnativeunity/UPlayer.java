@@ -2,6 +2,10 @@ package com.azesmwayreactnativeunity;
 
 import android.app.Activity;
 import android.content.res.Configuration;
+import android.graphics.PixelFormat;
+import android.view.SurfaceView;
+import android.view.View;
+import android.view.ViewGroup;
 import android.widget.FrameLayout;
 
 import com.unity3d.player.*;
@@ -35,6 +39,32 @@ public class UPlayer {
                 callback.onQuit();
             }
         });
+
+        // --- Прозрачный фон Unity SurfaceView ---
+        // Делаем SurfaceView внутри UnityPlayer полупрозрачным, чтобы видеть
+        // RN-элементы, расположенные ПОД ним. Элементы, которые должны быть
+        // НАД Unity, нужно рендерить через <Modal transparent> (отдельное окно).
+        try {
+            FrameLayout frame = requestFrame();
+            if (frame != null) {
+                applyTransparentToSurfaces(frame);
+            }
+        } catch (Exception ignored) {}
+    }
+
+    private void applyTransparentToSurfaces(View root) {
+        if (root instanceof SurfaceView) {
+            SurfaceView sv = (SurfaceView) root;
+            sv.setZOrderOnTop(true);
+            sv.getHolder().setFormat(PixelFormat.TRANSLUCENT);
+            sv.setBackgroundColor(0x00000000);
+        }
+        if (root instanceof ViewGroup) {
+            ViewGroup vg = (ViewGroup) root;
+            for (int i = 0; i < vg.getChildCount(); i++) {
+                applyTransparentToSurfaces(vg.getChildAt(i));
+            }
+        }
     }
 
     public static void UnitySendMessage(String gameObject, String methodName, String message) {
@@ -91,13 +121,18 @@ public class UPlayer {
         }
     }
 
-    public FrameLayout requestFrame() throws NoSuchMethodException {
+    public FrameLayout requestFrame() {
         try {
+            //Attempt to invoke getFrameLayout() for the newer UnityPlayer class
             Method getFrameLayout = unityPlayer.getClass().getMethod("getFrameLayout");
-
             return (FrameLayout) getFrameLayout.invoke(unityPlayer);
         } catch (NoSuchMethodException | IllegalAccessException | InvocationTargetException e) {
-            return unityPlayer;
+            // If it is old UnityPlayer, use isInstance() and cast() to bypass incompatible type checks when compiling using newer versions of UnityPlayer
+            if (FrameLayout.class.isInstance(unityPlayer)) {
+                return FrameLayout.class.cast(unityPlayer);
+            } else {
+                return null;
+            }
         }
     }
 

@@ -6,6 +6,10 @@ import android.content.Context;
 
 import android.annotation.SuppressLint;
 import android.content.res.Configuration;
+import android.graphics.PixelFormat;
+import android.view.SurfaceView;
+import android.view.View;
+import android.view.ViewGroup;
 import android.widget.FrameLayout;
 
 import java.lang.reflect.InvocationTargetException;
@@ -17,6 +21,28 @@ public class ReactNativeUnityView extends FrameLayout {
 
   public ReactNativeUnityView(Context context) {
     super(context);
+    setBackgroundColor(0x00000000);
+  }
+
+  private void applyTransparentToSurfaces(View root) {
+    if (root instanceof SurfaceView) {
+      SurfaceView sv = (SurfaceView) root;
+      sv.setZOrderOnTop(true);
+      sv.getHolder().setFormat(PixelFormat.TRANSLUCENT);
+      sv.setBackgroundColor(0x00000000);
+    }
+    if (root instanceof ViewGroup) {
+      ViewGroup vg = (ViewGroup) root;
+      for (int i = 0; i < vg.getChildCount(); i++) {
+        applyTransparentToSurfaces(vg.getChildAt(i));
+      }
+    }
+  }
+
+  @Override
+  protected void onAttachedToWindow() {
+    super.onAttachedToWindow();
+    applyTransparentToSurfaces(this);
   }
 
   public void setUnityPlayer(UPlayer player) throws InvocationTargetException, NoSuchMethodException, IllegalAccessException {
