@@ -98,7 +98,6 @@ repositories {
   }
   google()
   mavenCentral()
-  jcenter()
 }
 
 

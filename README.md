@@ -93,16 +93,51 @@ After you've moved the files from the `unity` folder to your Unity project, you 
 
 1. Open your Unity project
 2. Export Unity app to `<YOUR_RN_PROJECT>/unity/builds/android`
-3. Remove `<intent-filter>...</intent-filter>` from `<YOUR_RN_PROJECT>/unity/builds/android/unityLibrary/src/main/AndroidManifest.xml` at unityLibrary to leave only integrated version.
 
-If you're using expo, you're done. The built-in expo plugin will handle the rest. If you're not using expo, you'll need to follow the steps below.
+#### Expo
 
-1. Add the following lines to `android/settings.gradle`:
+Add the plugin to `app.json` (use the name the package is installed under in `node_modules`) and run `npx expo prebuild --clean`:
+
+```json
+{
+  "expo": {
+    "plugins": ["@azesmway/react-native-unity"]
+  }
+}
+```
+
+If the Unity export lives somewhere else, pass its path relative to the project root:
+
+```json
+["@azesmway/react-native-unity", { "androidExportPath": "../MyGame/Builds/android" }]
+```
+
+The plugin includes `unityLibrary` in the Gradle build, passes `unityStreamingAssets` and `unity.*` properties (`unity.androidSdkPath`, `unity.androidNdkPath`, ...) from the export's `gradle.properties` to Gradle, resolves the `android:enableOnBackInvokedCallback` manifest conflict, and removes the launcher `<intent-filter>` of the Unity activity. Re-exporting the Unity project doesn't require another prebuild unless the Unity activity changes.
+
+Gradle also needs to know where the Android SDK is. Either set `ANDROID_HOME` once in your shell profile (e.g. `~/.zshrc`):
+
+```sh
+export ANDROID_HOME="$HOME/Library/Android/sdk"
+export PATH="$PATH:$ANDROID_HOME/platform-tools"
+```
+
+or set `sdk.dir` in `android/local.properties` (absolute path, `~` is not expanded; it takes precedence over `ANDROID_HOME`):
+
+```properties
+sdk.dir=/Users/<USER>/Library/Android/sdk
+```
+
+The SDK bundled with Unity (`/Applications/Unity/Hub/Editor/<VERSION>/PlaybackEngines/AndroidPlayer/SDK`) works too, but its path changes with every Unity version. Note that `npx expo prebuild --clean` deletes the whole `android` folder including `local.properties`; plain `npx expo prebuild` keeps it.
+
+#### Without Expo
+
+1. Remove `<intent-filter>...</intent-filter>` from `<YOUR_RN_PROJECT>/unity/builds/android/unityLibrary/src/main/AndroidManifest.xml` at unityLibrary to leave only integrated version.
+2. Add the following lines to `android/settings.gradle`:
    ```groovy
    include ':unityLibrary'
-   project(':unityLibrary').projectDir=new File('..\\unity\\builds\\android\\unityLibrary')
+   project(':unityLibrary').projectDir=new File(rootDir, '../unity/builds/android/unityLibrary')
    ```
-2. Add into `android/build.gradle`
+3. Add into `android/build.gradle`
    ```groovy
    allprojects {
      repositories {
@@ -114,15 +149,18 @@ If you're using expo, you're done. The built-in expo plugin will handle the rest
      }
    }
    ```
-3. Add into `android/gradle.properties`
+4. Add into `android/gradle.properties` the `unityStreamingAssets` value and, for Unity 2023 and above, the `unity.*` properties from `unity/builds/android/gradle.properties`:
    ```gradle
    unityStreamingAssets=.unity3d
+   unity.androidSdkPath=/Applications/Unity/Hub/Editor/<VERSION>/PlaybackEngines/AndroidPlayer/SDK
+   unity.androidNdkPath=/Applications/Unity/Hub/Editor/<VERSION>/PlaybackEngines/AndroidPlayer/NDK
    ```
-4. Add strings to `android/app/src/main/res/values/strings.xml`
+5. Add strings to `android/app/src/main/res/values/strings.xml`
 
    ```javascript
    <string name="game_view_content_description">Game view</string>
    ```
+6. If the build fails with `Attribute application@enableOnBackInvokedCallback ... is also present at [:unityLibrary]`, add `tools:replace="android:enableOnBackInvokedCallback"` to `<application>` in `android/app/src/main/AndroidManifest.xml` (with `xmlns:tools="http://schemas.android.com/tools"` on `<manifest>`).
 
 # Known issues
 
